@@ -75,11 +75,50 @@ the season. Later in the assignment you'll be building models to predict this va
 
 
 ## EDA
+```{r}
+ggplot(teams_hw3,aes(x=winPct)) + 
+  geom_histogram() + 
+  labs(x=" Win Percentage")
+
+ggplot(teams_hw3, aes(x=R,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=log(AB),y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=H,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=HR,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=DBLS,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=TPLS,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=BB,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=log(SO),y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=SB,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=CS,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=RA,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=ER,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=ERA,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=HA,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=HRA,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=BBA,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=SOA,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=E,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=DP,y=winPct)) + geom_point()
+ggplot(teams_hw3, aes(x=FP,y=winPct)) + geom_point()
+corrmat <- cor(teams_hw3[,1:22])
+ggplot(teams_hw3, aes(x=CS,y=winPct)) + geom_point()
+
+corrplot::corrplot(corrmat,)
+head(round(corrmat,2))
+
+teams_hw3 %>% filter(winPct > 0.45 & winPct < 0.6) %>%  ggplot + geom_histogram(aes(x= winPct))
+
+```
 
 Do some appropriate exploratory data analysis to get a sense of the distributions of the
 predictor variables and target variables. Things like histograms and 
 other similar plots might be useful. Also, do a correlation matrix and
 correlation plot. Summarize your findings.
+
+> Histogram of winning perecentage is Unimodal
+> Runs are highly correlated to Hits, DBLs and HR (we can ignore any of the variables to avoid collinearity between variables)
+> WInning Percentage is positively correlated to runs  and is negatively correlated to RA, ER,ERA,BBA and CS
+> FP and E are highy negatively correlated
 
 ## Data partitioning
 
@@ -178,6 +217,22 @@ surprising?
 
 
 ## Fit a few more models
+```{r}
+
+fullModel_1 <- lm(winPct ~  R+AB+HRA+SOA+DP+FP+SB+CS+ER+E+HA+BBA+RA, data = teams_train)
+
+summary(fullModel_1)
+
+predFull_1 <- predict(fullModel_1, newdata = teams_test)
+
+maeFull_fit_1 <- MAE(fullModel_1$fitted.values, teams_train$winPct)
+maeFull_fit_1
+
+# evaluate model predictive values
+maeFull_1 <- MAE(predFull_1, teams_test$winPct)
+maeFull_1
+
+```
 
 Using your judgement, fit 2-3 more models using some subset of the full model variables. You might want to consider trying to reduce multicollinearity to see if this has an impact on model peformance. For each of your models, do the same steps as above:
 
