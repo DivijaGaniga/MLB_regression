@@ -108,6 +108,15 @@ head(round(corrmat,2))
 
 teams_hw3 %>% filter(winPct > 0.45 & winPct < 0.6) %>%  ggplot + geom_histogram(aes(x= winPct))
 
+(x <- teams_hw3 %>% mutate (AB = log(AB),
+                            H = log(H),
+                            FP = FP*100,
+                            winPct = winPct*100,
+                            ERA = log(ERA)))
+
+x.pca <- prcomp(x[,c(1:22)], center = TRUE,scale. = TRUE)
+summary(x.pca)
+
 ```
 
 Do some appropriate exploratory data analysis to get a sense of the distributions of the
@@ -232,6 +241,27 @@ maeFull_fit_1
 maeFull_1 <- MAE(predFull_1, teams_test$winPct)
 maeFull_1
 
+# Model 2
+
+fullModel_2 <- lm(winPct ~ log(R)+log(AB)+ERA+log(RA)+HR+BB+CS+E+FP+DP+log(SOA)+HRA+TPLS+E+SB+log(SO)+BBA+log(HA), data = teams_train)
+
+summary(fullModel_2)
+
+predFull_2 <- predict(fullModel_2, newdata = teams_test)
+summary(predFull_2)
+
+maeFull_fit_2 <- MAE(fullModel_2$fitted.values, teams_train$winPct)
+maeFull_fit_2
+
+# evaluate model predictive values
+maeFull_2 <- MAE(predFull_2, teams_test$winPct)
+maeFull_2
+
+fullModel_3 <- lm(winPct ~ R+ERA+HRA+DP+FP+log(AB)+BBA+SO+HR, data = teams_train)
+summary(fullModel_3)
+
+x <- lm(winPct ~ R+H+HR+RA+SO+BB, data = teams_train)
+summary(x)
 ```
 
 Using your judgement, fit 2-3 more models using some subset of the full model variables. You might want to consider trying to reduce multicollinearity to see if this has an impact on model peformance. For each of your models, do the same steps as above:
@@ -258,13 +288,20 @@ Add a new feature to both the training and test datasets called `ptb` using the 
 Here's some skeleton code using dplyr and using base R. Whichever you decide to do, make sure you also add `ptb` to the test data too.
 
 ```{r add_ptb}
-# teams_train <- teams_train %>% 
-#   mutate(ptb = ???)
+teams_train <- teams_train %>% 
+              mutate(ptb = (R^2)/(R^2+RA^2))
+teams_train
 
-# Could also just use base R
-# teams_train$ptb <- ???
+#Could also just use base R
+  teams_train$ptb <- ((teams_train$R)^2)/(((teams_train$R)^2)+((teams_train$RA)^2))
+teams_train
 
 # Now add ptb to teams_test
+
+teams_test <- teams_test %>% 
+              mutate(ptb = (R^2)/(R^2+RA^2))
+teams_test
+
 ```
 
 ### PTB Model 1
@@ -276,14 +313,26 @@ compute MAE of the `ptb` values for both training and test. Compare to the MAE
 values you got from fitting the regression models. Discuss the results. Really think about the implications of these results for building predictive models.
 
 ```{r ptb1_mae}
-# maePTB1_fit <- MAE(teams_train$ptb, teams_train$winPct)
+maePTB1_fit <- MAE(teams_train$ptb, teams_train$winPct)
 maePTB1_fit
-# maePTB1 <- MAE(???, teams_test$winPct)
+maePTB1 <- MAE(teams_test$ptb, teams_test$winPct)
 maePTB1
 ```
 
 
 ### PTB Model 2
+```{r}
+
+fullModel_3 <- lm(winPct ~ ptb+log(H)+HRA+SO+DP+FP+ER+E+SB+SOA+CS+TPLS
+                  , data = teams_train)
+
+x <- lm(formula = winPct ~ ptb + log(AB) + ERA  + HR + 
+    BB + CS + E + FP + DP + SOA + HRA + TPLS +SB + 
+    SO + BBA + log(HA), data = teams_train)
+
+summary(x)
+
+```
 
 What if we allow ourselves to use the new `ptb` variable within a regression
 model? Perhaps we can do better than either the regression models or the PTB does by themselves.
