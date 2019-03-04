@@ -1,0 +1,278 @@
+---
+title: "bb_data_prep"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Background
+
+Please read the entire assignment before starting. You can work in teams of 1-3. You'll be turning in this Rmd file, any additional R or Rmd files you create and knitted html versions of all Rmd files. As you'll see, part of this assignment is a little Kaggle-like competition. I'll provide more info later on computing your final team score for the competition. Have fun.
+
+The use of analytics in sports has increased dramatically over the past several years. Arguably, Bill James, one of the pioneers of the field of statistics in baseball, "sabermetrics", is one of the reasons for this. In this assignment you'll get a
+chance to do some predictive regression modeling using an extended version of the
+MLB data we used in class. I hope you enjoy the journey - it's got a little bit of:
+
+- building a basic workflow to fit and evaluate regression models,
+- big linear models versus little non-linear models,
+- a little Kaggle style competition
+
+We'll build on these skills as the semester progresses. Start simple.
+
+I **highly recommend** going throught the 6_MLB_regression_modeling_notes.Rmd file from the regression session before starting this assignment.
+
+## Load libraries
+
+```{r}
+library(ggplot2)
+library(dplyr)
+```
+
+## Read data
+
+From the README.txt file that came with the Baseball Databank.
+
+
+> Baseball Databank is a compilation of historical baseball data in a
+> convenient, tidy format, distributed under Open Data terms.
+> 
+> This work is licensed under a Creative Commons Attribution-ShareAlike
+> 3.0 Unported License.  For details see:
+> http://creativecommons.org/licenses/by-sa/3.0/
+
+This is a pretty amazing database of all kinds of baseball statistics. We are
+just going to be working with a subset of the Teams table. The full Teams table
+contains annual statistics by team stretching back to the late 1800s. As you'll
+see, we'll be working with a subset of the rows as well as a subset of the
+columns. The file readme2014.txt contains data dictionaries for all of the tables.
+See **Section 2.8 Teams** if you want to see the definitions of all of the
+columns in this table. You will NOT be reading in raw csv files. I've already
+done some data prep for this problem and have made an rdata file
+
+```{r loaddata}
+load("data/teams_hw3.rdata")
+
+str(teams_hw3)
+summary(teams_hw3)
+
+```
+
+## Explore the data
+
+Use `str` and `summary` to explore the data. You'll see that the year
+and team variables have already been dropped. The first 21 variables
+are the independent variables (the features or predictors). 
+
+Variable
+22 is `winPct` (winning percentage) and this is the first target variable we'll be trying
+to predict using regression. This is similar to what we did in the notes
+on linear regression, though as you'll see, you'll have a few more columns and whole lot more rows to use.
+
+Variable 23 is, `avgAtt`, the average attendance (number of spectators per game) for
+the season. Later in the assignment you'll be building models to predict this variable. 
+
+
+## EDA
+
+Do some appropriate exploratory data analysis to get a sense of the distributions of the
+predictor variables and target variables. Things like histograms and 
+other similar plots might be useful. Also, do a correlation matrix and
+correlation plot. Summarize your findings.
+
+## Data partitioning
+
+For this assignment, you'll start with simple data partitioning into 
+training and test datasets. The test data set will contain approximately
+20% of the records. Here's some skeleton code. See notes from 
+regression session. Please use the random number seed that I've provided.
+
+```{r}
+set.seed(267)
+test_pct <- 0.20
+
+num_test_recs <- as.integer(test_pct * nrow(teams_hw3))
+
+test_recs <- sample(nrow(teams_hw3),num_test_recs)
+
+teams_train <- teams_hw3[-test_recs,]
+teams_test <- teams_hw3[test_recs,]
+
+
+```
+
+
+
+## Problem 1: Linear regression models for predicting winPct
+
+**IMPORTANT:** For the models using `winPct` as the Y variable, do NOT use `avgAtt` in your models. Similarly, when predicting `avgAtt`, do NOT use `winPct` in your models. 
+
+Let's start by creating the smallest and largest simple multiple regression models using `winPct` as our target variable. Obviously, use the training dataset. For the null model, just fit
+a y-intercept. For the full model, use all of the input variables except for `avgAtt`. You do NOT need to type all of the variable names for the full model (there's a shortcut for specifying all variables and then you can use the minus sign to Again, I did this in the class notes and plenty of help available in our texts and online.
+
+```{r null_full}
+
+ nullModel <- lm(winPct ~ 1, data = teams_train)
+
+fullModel <- lm(winPct ~ . - avgAtt, data = teams_train)
+
+summary(nullModel)
+
+summary(fullModel)
+
+```
+
+Do a `summary` of the two model objects and discuss the results. How well
+does the full model fit as compared to the null model? How many variables
+appear to be stastistically significant.
+
+> - null model uses overall averages of the response variable for prediction, in null model we just fit intercept terms and Full model to use all data
+> - Regression model of full model explains y  variable well (adjusted R2 is 88%)
+> -   There are 8 variables , which are highly statisticaly significant and other 5 variables are significant
+> - large absolute t-value says that pretty unlikely that slope is zero
+>- null model has very high t-value and small p-value which says that slope is different from zero
+> - null model intercept is 0.49 which means that without any variables we predict teams will 0.49% of the games
+>- due to multicolinearity among variables intercepts in full model shows different values
+
+
+Now make predictions on the test data using the null and full models.
+
+```{r null_full_winPct_pred}
+ predNull <- predict(nullModel, newdata = teams_test)
+predFull <- predict(fullModel, newdata = teams_test)
+
+```
+
+In order to evaluate predictions in this assignent, we will use the metric Mean Absolute Error (MAE). Obviously, it's just the mean of the absolute differences between the predicted and actual values. We can compute for training data (as a measure of fit accuracy) and for test data (as a measure of predictive accuracy.) The MLmetrics package includes an MAE function. You can either use that or write your own MAE function.
+
+Compute MAE for the null and full models first for fit accuracy on training data and then for predictive accuracy using test data.
+
+Evaluate model fit using MAE.
+
+```{r null_full_mae_fit}
+library(MLmetrics)
+
+maeNull_fit <- MAE(nullModel$fitted.values, teams_train$winPct)
+maeNull_fit
+maeFull_fit <- MAE(fullModel$fitted.values, teams_train$winPct)
+maeFull_fit
+```
+
+Now evaluate model predictive performance using MAE.
+
+```{r null_full_mae}
+
+maeNull <- MAE(predNull, teams_test$winPct)
+maeNull
+maeFull <- MAE(predFull, teams_test$winPct)
+maeFull
+```
+
+Discuss the results. Is accuracy higher for fitting or prediction? Is this
+surprising?
+
+> - Mean absolute error is high in null model compared to fit model in both fit and test models
+> - we know that MSE is at its maximum when we lack any predictors and X is simply a column of ones; this is how we would fit an intercept-only model.
+>- In real world MAe can never be equal t zero and if it is model is not a perfect one.
+
+
+## Fit a few more models
+
+Using your judgement, fit 2-3 more models using some subset of the full model variables. You might want to consider trying to reduce multicollinearity to see if this has an impact on model peformance. For each of your models, do the same steps as above:
+
+- fit a model using training data
+- make predictions for the test data set
+- compute MAE for both fit and predictive performance
+- summarize results
+
+## Feature engineering and a simple nonlinear model
+
+Bill James is credited with developing the Pythagorean Theorem of Baseball. Please see this page for an overview of the PTB.
+
+https://www.baseball-reference.com/bullpen/Pythagorean_Theorem_of_Baseball
+
+We will start by considering the most common version.
+
+$$
+ winPct = \frac{R^2}{R^2 + RA^2}
+$$
+
+Add a new feature to both the training and test datasets called `ptb` using the formula above.
+
+Here's some skeleton code using dplyr and using base R. Whichever you decide to do, make sure you also add `ptb` to the test data too.
+
+```{r add_ptb}
+# teams_train <- teams_train %>% 
+#   mutate(ptb = ???)
+
+# Could also just use base R
+# teams_train$ptb <- ???
+
+# Now add ptb to teams_test
+```
+
+### PTB Model 1
+
+We can simply treat the new `ptb` column as a set of predicted values
+for winPct. That's the whole point of the PTB. Note that we are NOT fitting
+any parameters at all. We are simply treating `ptb` as our predictions. So,
+compute MAE of the `ptb` values for both training and test. Compare to the MAE
+values you got from fitting the regression models. Discuss the results. Really think about the implications of these results for building predictive models.
+
+```{r ptb1_mae}
+# maePTB1_fit <- MAE(teams_train$ptb, teams_train$winPct)
+maePTB1_fit
+# maePTB1 <- MAE(???, teams_test$winPct)
+maePTB1
+```
+
+
+### PTB Model 2
+
+What if we allow ourselves to use the new `ptb` variable within a regression
+model? Perhaps we can do better than either the regression models or the PTB does by themselves.
+
+Using one of the regression models from you build at the start of the assignment, create a new model
+that also includes the new `ptb` variable. Fit, predict, evaluate MAE and discuss results.
+
+### Hacker Extra - PTB variants
+
+Experiment with exponents other than 2 in the PTB to see if you can
+build a more accurate predictive model. You could even try the R function `nls()` for doing non-linear regression models to see if you can find the
+optimal exponent for the PTB model for this dataset.
+
+## Problem 2: A mini in-class Kaggleish competition
+
+Please start by making up a "team name". It can be as simple as your last name.
+
+Now that you have a feel for fitting, predicting and evaluating predictive linear regression models, let's see how we can do on a slightly more difficult problem. Instead of trying to predict `winPct`, now you want to predict `avgAtt` (average spectator attendance). A few notes:
+
+- we'll still use MAE as our error metric
+- you CANNOT use the `winPct` variable
+- you can do whatever you'd like in terms of partitioning the data or using k-crossfold validation, 
+- you can engineer new features (i.e. compute new variables) using the existing variables but you CANNOT use any other data
+- please keep your model building attempts in your Rmd file. Make it clear at the
+end which model you are choosing as your "best model" and **why you chose it**.
+
+I have a *holdout* set of 142 observations that were not included in the
+`teams_hw3` dataset you've been using. I put it into a dataframe called teams_hw3_holdout and saved an rdata file named teams_hw3_holdout.rdata. So, after you are done finding the best
+ model you can, create a code chunk (or separate R script file) that does
+ the following. I'll be giving you the holdout data at the appropriate time. The
+ team that comes up with the lowest MAE on the holdout data, wins. :)
+ 
+```{r eval_holdout}
+load("data/teams_hw3_holdout.rdata")
+
+# IMPORTANT: If you did any feature engineering, add any necessary new
+#            columns to the teams_hw3_holdout data frame so that your
+#            model can make predictions.
+
+# pred_holdout <- predict(YOUR BEST MODEL, newdata = teams_hw3_holdout)
+# mae_holdout_YOURTEAMNAME <- MAE(pred_holdout, teams_hw3_holdout$avgAtt)
+# print(mae_holdout_YOURTEAMNAME)
+```
+ 
+## Deliverables
+
+You'll be turning in this Rmd file, any additional R or Rmd files you create and knitted html versions of all Rmd files.
