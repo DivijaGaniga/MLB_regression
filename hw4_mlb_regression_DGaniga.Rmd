@@ -455,11 +455,10 @@ teams_train <- teams_train %>%
 
 # ptb using nls method
 
-  nls_ptb <- nls(ptb ~ 0.5+i*(R-RA) , data = teams_train, start = list(i =2))
+nls_ptb <- nls(ptb ~ (R^i)/(R^i + RA^i) , data = teams_train, start = list(i =2), trace = TRUE)
 summary(nls_ptb)
 
-
- PTB_fit2 <- lm(winPct ~ ptb, data = teams_train)
+# Checking the nls model fit is true
 
   # with 2.67
 
@@ -549,25 +548,61 @@ Please start by making up a "team name". It can be as simple as your last name.
 library(caret)
 
 set.seed(267)
-testrecs <- createDataPartition(teams_hw3$avgAtt, p=0.5, list = FALSE) 
-cs_test <- teams_hw3[testrecs,]
-cs_fit <- teams_hw3[-testrecs,] 
+testrecs <- createDataPartition(teams_hw3$avgAtt, p=0.2, list = FALSE) 
+aggatt_test <- teams_hw3[testrecs,]
+aggatt_fit <- teams_hw3[-testrecs,] 
 
 fitcontrol <- trainControl(
-          method = "CV", number= 5)
+          method = "CV", number= 5, savePredictions = TRUE)
 
-fitControl <- trainControl(method = "lm", number =3)
-set.seed(120)
-#
-avg_fit <- train(avgAtt ~ R*HR*E+SOA+FP+RA+H+BB+SB*CS, data = teams_hw3, method = "lm")
-avg_fit
+avgatt_fit <- train(avgAtt ~ R*HR*E+SOA+FP+RA+H+BB+SB*CS, data = aggatt_fit, method = "lm", trControl = fitcontrol)
+#summary(avg_fit)
+avgatt_fit
 
-attpred <- predict(avg_fit, newdata = teams_hw3)
-maeatt_pred <- MAE(attpred, teams_hw3$avgAtt)
+# Predictions
+attpred <- predict(avgatt_fit,  newdata = aggatt_test)
+
+maeatt_pred <- MAE(attpred, aggatt_test$avgAtt)
 maeatt_pred
 
-teams_hw3
+# 2
 
+avgatt_fit2 <- train(avgAtt ~ R+RA+ERA+SOA*HR+FP+SB*CS+H+AB, data = aggatt_fit, method = "lm", trControl = fitcontrol)
+#summary(avg_fit)
+avgatt_fit2
+
+attpred2 <- predict(avgatt_fit2,  newdata = aggatt_test)
+
+maeatt_pred2 <- MAE(attpred2, aggatt_test$avgAtt)
+maeatt_pred2
+
+#3
+avgatt_fit3 <- train(avgAtt ~ AB+H+SB+SOA+HR+RA+ER+DBLS+HRA+FP, data = aggatt_fit, method = "lm", trControl = fitcontrol, metric = "Rsquared")
+summary(avgatt_fit3)
+avgatt_fit3
+
+attpred3 <- predict(avgatt_fit3,  newdata = aggatt_test)
+
+maeatt_pred3 <- MAE(attpred3, aggatt_test$avgAtt)
+maeatt_pred3
+
+#4 SO+SOA+H+DBLS+E+RA+AB+SB+HR+HRA+BBA+FP+ER
+avgatt_fit4 <- train(avgAtt ~ SO+SOA+H+DBLS+HR+ER+E+BBA+FP+AB+HRA+SB, 
+                     data = aggatt_fit, method = "lm", trControl = fitcontrol, metric = "Rsquared")
+summary(avgatt_fit4)
+avgatt_fit4
+
+attpred4 <- predict(avgatt_fit4,  newdata = aggatt_test)
+
+maeatt_pred4 <- MAE(attpred4, aggatt_test$avgAtt)
+maeatt_pred4
+
+
+
+
+```
+
+```{r}
 # by normal partitioning
 
 set.seed(267)
@@ -586,9 +621,9 @@ teams_train1
 teams_train1 <- teams_train1 %>% 
               mutate(ptb2 = (R^2)/(R^2+RA^2)) %>% mutate (BA = H/AB)
 
-#avgatt_fit1 <- lm(avgAtt ~ R*HR*E+SOA+FP+RA+H+BB+SB*CS, data = teams_train1)
+#R*HR+RA+SOA+FP+BB+SB*CS+BA
 
-avgatt_fit1 <- lm(avgAtt ~ winPct, data = teams_train)
+avgatt_fit1 <- lm(avgAtt ~ SO+SOA+HR+DBLS+FP+RA+H+AB+SB+HRA+BBA+ER+E, data = teams_train1)
 
 (rsq <- summary(avgatt_fit1)$r.squared)
 
@@ -604,15 +639,6 @@ attptb_fit
 
 maeatt_pred <- MAE(attpred, teams_test1$avgAtt)
 maeatt_pred
-
-
-varlist <- names(teams_train1)[1:22]
-
-models <- lapply(varlist, function(x) {
-    lm(substitute(avgAtt ~ i, list(i = as.name(x))), data = teams_train1)
-})
-
-#lapply(models, summary)
 
 
 ```
