@@ -453,11 +453,15 @@ that also includes the new `ptb` variable. Fit, predict, evaluate MAE and discus
 teams_train <- teams_train %>% 
               mutate(ptb = (R^2)/(R^2+RA^2))
 
+# ptb using nls method
+
+  nls_ptb <- nls(ptb ~ 0.5+i*(R-RA) , data = teams_train, start = list(i =2))
+summary(nls_ptb)
+
+
  PTB_fit2 <- lm(winPct ~ ptb, data = teams_train)
 
- 
-
-# with 2.67
+  # with 2.67
 
 teams_train <- teams_train %>% 
               mutate(ptb = (R^2.67)/(R^2.67+RA^2.67))
@@ -504,8 +508,6 @@ expresults$Model <- sprintf("Fit models%s", 1:5)
 expresults
 
 
-
-
 # Now add ptb to teams_test with best exponent
 teams_test <- teams_test %>% 
               mutate(ptb2 = (R^3.33)/(R^3.33+RA^3.33))
@@ -546,16 +548,30 @@ Please start by making up a "team name". It can be as simple as your last name.
 
 library(caret)
 
-#set.seed(4470)
-#testrecs <- createDataPartition(teams_hw3, p=0.5, list = FALSE) 
-#acs_test <- teams_hw3[testrecs,]
-#acs_fit <- acs[-testrecs,] 
+set.seed(267)
+testrecs <- createDataPartition(teams_hw3$avgAtt, p=0.5, list = FALSE) 
+cs_test <- teams_hw3[testrecs,]
+cs_fit <- teams_hw3[-testrecs,] 
+
+fitcontrol <- trainControl(
+          method = "CV", number= 5)
+
+fitControl <- trainControl(method = "lm", number =3)
+set.seed(120)
+#
+avg_fit <- train(avgAtt ~ R*HR*E+SOA+FP+RA+H+BB+SB*CS, data = teams_hw3, method = "lm")
+avg_fit
+
+attpred <- predict(avg_fit, newdata = teams_hw3)
+maeatt_pred <- MAE(attpred, teams_hw3$avgAtt)
+maeatt_pred
 
 teams_hw3
 
+# by normal partitioning
+
 set.seed(267)
 test_pct <- 0.20
-
 
 num_test_recs <- as.integer(test_pct * nrow(teams_hw3))
 
