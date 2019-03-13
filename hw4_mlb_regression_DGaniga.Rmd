@@ -448,29 +448,85 @@ that also includes the new `ptb` variable. Fit, predict, evaluate MAE and discus
 
 ### Hacker Extra - PTB variants
 ```{r}
+
+
 teams_train <- teams_train %>% 
-              mutate(ptb = (R^3.6)/(R^3.6+RA^3.6))
-#teams_train
-#Could also just use base R
-  #teams_train$ptb <- ((teams_train$R)^1.81)/(((teams_train$R)^1.81)+((teams_train$RA)^1.81))
-#teams_train
-# Now add ptb to teams_test
+              mutate(ptb = (R^2)/(R^2+RA^2))
+
+ PTB_fit2 <- lm(winPct ~ ptb, data = teams_train)
+
+ 
+
+# with 2.67
+
+teams_train <- teams_train %>% 
+              mutate(ptb = (R^2.67)/(R^2.67+RA^2.67))
+
+ PTB_fit2.67 <- lm(winPct ~ ptb, data = teams_train)
+
+# with 3
+teams_train <- teams_train %>% 
+              mutate(ptb = (R^3)/(R^3+RA^3))
+
+ PTB_fit3 <- lm(winPct ~ ptb, data = teams_train)
+
+
+# 3.32
+teams_train <- teams_train %>% 
+              mutate(ptb = (R^3.34)/(R^3.34+RA^3.34))
+
+ PTB_fit3.34 <- lm(winPct ~ ptb, data = teams_train)
+
+# 3.33
+teams_train <- teams_train %>% 
+              mutate(ptb = (R^3.33)/(R^3.33+RA^3.33))
+
+ PTB_fit3.33 <- lm(winPct ~ ptb, data = teams_train)
+
+
+#R-Square
+
+rsqrd <- c(summary(PTB_fit2)$r.squared, summary(PTB_fit2.67)$r.squared,
+           summary(PTB_fit3)$r.squared, summary(PTB_fit3.34)$r.squared,
+            summary(PTB_fit3.33)$r.squared)
+rsqrd
+exp <- c(2,2.67,3,3.34,3.33)
+
+# Values as a dataframe
+
+expresults <- as.data.frame(cbind(exp,rsqrd)) %>%  arrange(desc(rsqrd))
+
+# Gives the columns nice names in cvResults in data.frame
+names(expresults) <- c("Expresults","R-square of Fitted models")
+
+# Tack on model name to results
+expresults$Model <- sprintf("Fit models%s", 1:5)
+expresults
+
+
+
+
+# Now add ptb to teams_test with best exponent
 teams_test <- teams_test %>% 
-              mutate(ptb = (R^3.6)/(R^3.6+RA^3.6))
-#teams_test
+              mutate(ptb2 = (R^3.33)/(R^3.33+RA^3.33))
+teams_train <- teams_train %>% 
+              mutate(ptb2 = (R^3.33)/(R^3.33+RA^3.33))
 
+PTBmodel_3 <- lm(winPct ~  ptb2+H*AB+FP+ERA+R+RA
+                  , data = teams_train)
+summary(PTBmodel_3)
 
-PTB_fit3 <- lm(winPct ~ ptb, data = teams_train)
-(rsq <- summary(PTB_fit3)$r.squared)
+# Prediction
+ptbpred_3 <- predict(PTBmodel_3, newdata = teams_test)
 
+# evaluate model on fitted
+maeptb_fit_3 <- MAE(PTBmodel_3$fitted.values, teams_train$winPct)
+maeptb_fit_3
 
-ptbpred_1 <- predict(PTB_fit1, newdata = teams_test)
+# evaluate model on predicted
 
-maePTB1_fit <- MAE(PTB_fit1$fitted.values, teams_train$winPct)
-maePTB1_fit
-maePTB1_pred <- MAE(ptbpred_1, teams_test$winPct)
-maePTB1_pred
-
+maeptb_pred_3 <- MAE(ptbpred_3, teams_test$winPct)
+maeptb_pred_3
 
 
 
@@ -480,9 +536,70 @@ Experiment with exponents other than 2 in the PTB to see if you can
 build a more accurate predictive model. You could even try the R function `nls()` for doing non-linear regression models to see if you can find the
 optimal exponent for the PTB model for this dataset.
 
+> From the above equations, 3.33 is the best exponent for PTB caluculation and error component is less with the exponent
+
 ## Problem 2: A mini in-class Kaggleish competition
 
 Please start by making up a "team name". It can be as simple as your last name.
+```{r}
+# team name : DGaniga
+
+library(caret)
+
+#set.seed(4470)
+#testrecs <- createDataPartition(teams_hw3, p=0.5, list = FALSE) 
+#acs_test <- teams_hw3[testrecs,]
+#acs_fit <- acs[-testrecs,] 
+
+teams_hw3
+
+set.seed(267)
+test_pct <- 0.20
+
+
+num_test_recs <- as.integer(test_pct * nrow(teams_hw3))
+
+test_recs <- sample(nrow(teams_hw3),num_test_recs)
+
+teams_train1 <- teams_hw3[-test_recs,]
+teams_test1 <- teams_hw3[test_recs,]
+
+teams_test1 <- teams_test1 %>% 
+              mutate(ptb2 = (R^2)/(R^2+RA^2)) %>%  mutate (BA = H/AB)
+teams_train1
+teams_train1 <- teams_train1 %>% 
+              mutate(ptb2 = (R^2)/(R^2+RA^2)) %>% mutate (BA = H/AB)
+
+#avgatt_fit1 <- lm(avgAtt ~ R*HR*E+SOA+FP+RA+H+BB+SB*CS, data = teams_train1)
+
+avgatt_fit1 <- lm(avgAtt ~ winPct, data = teams_train)
+
+(rsq <- summary(avgatt_fit1)$r.squared)
+
+# Prediction
+
+attpred <- predict(avgatt_fit1, newdata = teams_test1)
+
+# evaluate model on fitted
+attptb_fit <- MAE(avgatt_fit1$fitted.values, teams_train1$avgAtt)
+attptb_fit
+
+# evaluate model on predicted
+
+maeatt_pred <- MAE(attpred, teams_test1$avgAtt)
+maeatt_pred
+
+
+varlist <- names(teams_train1)[1:22]
+
+models <- lapply(varlist, function(x) {
+    lm(substitute(avgAtt ~ i, list(i = as.name(x))), data = teams_train1)
+})
+
+#lapply(models, summary)
+
+
+```
 
 Now that you have a feel for fitting, predicting and evaluating predictive linear regression models, let's see how we can do on a slightly more difficult problem. Instead of trying to predict `winPct`, now you want to predict `avgAtt` (average spectator attendance). A few notes:
 
